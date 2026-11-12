@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
 import {
-  ArrowLeft, ExternalLink, Trash2, Upload, Save, Lock, FileText, RefreshCcw,
+  ArrowLeft, ExternalLink, Trash2, Upload, Save, Lock, FileText, RefreshCcw, FileCode2, GitBranch,
 } from 'lucide-react';
-import { HostedAPI, DocumentsAPI } from '../../lib/api';
+import { HostedAPI, DocumentsAPI, GitHubAPI } from '../../lib/api';
 import { PageLoader, StatusBadge, EmptyState } from '../../components/ui/Primitives';
 import { ConfirmDialog } from '../../components/ui/Modal';
 import CopyField from '../../components/ui/CopyField';
@@ -12,7 +12,7 @@ import ChatWindow from '../../components/chat/ChatWindow';
 import { useChatStream } from '../../hooks/useChatStream';
 import { useToast } from '../../context/ToastContext';
 import { apiErrorMessage } from '../../lib/http';
-import { formatBytes } from '../../lib/format';
+import { formatBytes, formatDateTime } from '../../lib/format';
 import './Dashboard.css';
 
 import { getAccessToken } from '../../lib/http';
@@ -31,6 +31,7 @@ export default function HostedDetail() {
   const [config, setConfig] = useState(null);
   const source = config?.source; // set when the knowledge comes from a GitHub repository
   const [docs, setDocs] = useState([]);
+  const [repoFiles, setRepoFiles] = useState([]); // indexed files when the knowledge comes from GitHub
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState('Documents');
   const [uploading, setUploading] = useState(false);
@@ -53,8 +54,15 @@ export default function HostedDetail() {
       const { data } = await HostedAPI.config(botId);
       setConfig(data);
       setForm({ name: data.name, welcome_message: data.welcome_message, theme_color: data.theme_color, password: '' });
-      const docsRes = await DocumentsAPI.listForProject(botId);
-      setDocs(docsRes.data);
+
+      if (data.source?.repo_id) {
+        // GitHub-backed bot: files live in the repo's index, not in the uploaded documents table
+        const { data: st } = await GitHubAPI.status(data.source.repo_id);
+        setRepoFiles(st.doc_files || []);
+      } else {
+        const docsRes = await DocumentsAPI.listForProject(botId);
+        setDocs(docsRes.data);
+      }
     } catch (err) {
       toast.error(apiErrorMessage(err, 'Could not load this chatbot.'));
       navigate('/app/hosted');
@@ -194,39 +202,75 @@ export default function HostedDetail() {
       </div>
 
       {tab === 'Documents' && (
-        <div className="flex flex-col gap-4">
-          <FileDropzone multiple onFilesSelected={handleUpload} />
-          {uploading && <p style={{ fontSize: 13 }}>Uploading…</p>}
-          {docs.length === 0 ? (
-            <EmptyState icon={<FileText size={20} />} title="No documents yet" description="Upload documents to ground this chatbot's answers." />
-          ) : (
-            <div className="table-wrap">
-              <table className="data-table">
-                <thead><tr><th>File</th><th>Size</th><th>Chunks</th><th>Status</th><th></th></tr></thead>
-                <tbody>
-                  {docs.map((d) => (
-                    <tr key={d.id}>
-                      <td>{d.filename}</td>
-                      <td>{formatBytes(d.file_size)}</td>
-                      <td>{d.chunk_count ?? '—'}</td>
-                      <td><StatusBadge status={d.status} /></td>
-                      <td>
-                        <div className="flex gap-2">
-                          <button className="btn btn-ghost btn-sm btn-icon" onClick={() => handleReIngest(d.id)} title="Re-ingest">
-                            <RefreshCcw size={14} />
-                          </button>
-                          <button className="btn btn-ghost btn-sm btn-icon" onClick={() => handleDeleteDoc(d.id)} title="Delete">
-                            <Trash2 size={14} className="text-danger" />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+        source ? (
+          <div className="flex flex-col gap-4">
+            <div className="card card-pad flex items-center gap-2" style={{ fontSize: 13.5 }}>
+              <GitBranch size={15} />
+              <span>
+                Knowledge comes from{' '}
+                <a href={source.repo_url} target="_blank" rel="noreferrer" style={{ fontWeight: 600 }}>{source.repo}</a>.
+                To change it, update the docs in the repository (or re-sync it from the GitHub page).
+              </span>
             </div>
-          )}
-        </div>
+
+            {repoFiles.length === 0 ? (
+              <EmptyState
+                icon={<FileCode2 size={20} />}
+                title="No documentation files indexed yet"
+                description="Indexing may still be running. Check back in a moment."
+              />
+            ) : (
+              <div className="table-wrap">
+                <table className="data-table">
+                  <thead><tr><th>Path</th><th>Chunks</th><th>Last indexed</th></tr></thead>
+                  <tbody>
+                    {repoFiles.map((f) => (
+                      <tr key={f.path}>
+                        <td><code>{f.path}</code></td>
+                        <td>{f.chunk_count ?? '—'}</td>
+                        <td>{f.last_indexed_at ? formatDateTime(f.last_indexed_at) : '—'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="flex flex-col gap-4">
+            <FileDropzone multiple onFilesSelected={handleUpload} />
+            {uploading && <p style={{ fontSize: 13 }}>Uploading…</p>}
+            {docs.length === 0 ? (
+              <EmptyState icon={<FileText size={20} />} title="No documents yet" description="Upload documents to ground this chatbot's answers." />
+            ) : (
+              <div className="table-wrap">
+                <table className="data-table">
+                  <thead><tr><th>File</th><th>Size</th><th>Chunks</th><th>Status</th><th></th></tr></thead>
+                  <tbody>
+                    {docs.map((d) => (
+                      <tr key={d.id}>
+                        <td>{d.filename}</td>
+                        <td>{formatBytes(d.file_size)}</td>
+                        <td>{d.chunk_count ?? '—'}</td>
+                        <td><StatusBadge status={d.status} /></td>
+                        <td>
+                          <div className="flex gap-2">
+                            <button className="btn btn-ghost btn-sm btn-icon" onClick={() => handleReIngest(d.id)} title="Re-ingest">
+                              <RefreshCcw size={14} />
+                            </button>
+                            <button className="btn btn-ghost btn-sm btn-icon" onClick={() => handleDeleteDoc(d.id)} title="Delete">
+                              <Trash2 size={14} className="text-danger" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        )
       )}
 
       {tab === 'Preview' && (

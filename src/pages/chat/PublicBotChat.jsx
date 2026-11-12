@@ -109,8 +109,8 @@ export default function PublicBotChat() {
   };
 
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', background: 'var(--color-bg)', ...themeVars }}>
-      <header className="flex items-center justify-between" style={{ padding: '16px 24px', borderBottom: '1px solid var(--color-border-soft)' }}>
+    <div style={{ height: '100dvh', display: 'flex', flexDirection: 'column', overflow: 'hidden', background: 'var(--color-bg)', ...themeVars }}>
+      <header className="flex items-center justify-between" style={{ flexShrink: 0, padding: '16px 24px', borderBottom: '1px solid var(--color-border-soft)' }}>
         <div className="flex items-center gap-2">
           {!locked && chat.messages.length > 0 && (
             <button className="btn btn-ghost btn-sm" onClick={chat.reset}>
@@ -121,7 +121,7 @@ export default function PublicBotChat() {
         </div>
       </header>
 
-      <div className="container" style={{ flex: 1, display: 'flex', padding: '24px', maxWidth: 720 }}>
+      <div className="container" style={{ flex: 1, minHeight: 0, display: 'flex', padding: '24px', maxWidth: 720, width: '100%' }}>
         {locked ? (
           <div className="card card-pad" style={{ margin: 'auto', maxWidth: 380, width: '100%' }}>
             <div className="flex items-center gap-2 mb-4">
@@ -140,20 +140,22 @@ export default function PublicBotChat() {
             </form>
           </div>
         ) : (
-          <div style={{ flex: 1, minHeight: 560 }}>
-            <ChatWindow
-              messages={chat.messages}
-              onSend={chat.send}
-              sending={chat.sending}
-              emptyTitle={info.name}
-              welcomeMessage={info.welcome_message}
-              botLabel={info.name}
-            />
+          <div style={{ flex: 1, minWidth: 0, minHeight: 0, position: 'relative' }}>
+            <div style={{ position: 'absolute', inset: 0 }}>
+              <ChatWindow
+                messages={chat.messages}
+                onSend={chat.send}
+                sending={chat.sending}
+                emptyTitle={info.name}
+                welcomeMessage={info.welcome_message}
+                botLabel={info.name}
+              />
+            </div>
           </div>
         )}
       </div>
 
-      <footer className="text-center" style={{ padding: 16, fontSize: 12, color: 'var(--color-slate)' }}>
+      <footer className="text-center" style={{ flexShrink: 0, padding: 16, fontSize: 12, color: 'var(--color-slate)' }}>
         Powered by <a href="/" style={{ fontWeight: 700, color: 'var(--color-primary)' }}>Enawga</a>
       </footer>
     </div>

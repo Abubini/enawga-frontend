@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
-import { ArrowLeft, Trash2, Plus, Code2, KeyRound, FileText, RefreshCcw, MessageSquareCode } from 'lucide-react';
+import { ArrowLeft, Trash2, Plus, Code2, KeyRound, FileText, RefreshCcw, MessageSquareCode, FileCode2, GitBranch } from 'lucide-react';
 import { PluginAPI, DocumentsAPI } from '../../lib/api';
 import { PageLoader, StatusBadge, EmptyState } from '../../components/ui/Primitives';
 import { ConfirmDialog, Modal } from '../../components/ui/Modal';
@@ -221,34 +221,69 @@ export default function ApiDetail() {
       </div>
 
       {tab === 'Documents' && (
-        <div className="flex flex-col gap-4">
-          <FileDropzone multiple onFilesSelected={handleUpload} />
-          {uploading && <p style={{ fontSize: 13 }}>Uploading…</p>}
-          {!status.documents?.length ? (
-            <EmptyState icon={<FileText size={20} />} title="No documents yet" description="Upload documents to ground this project's answers." />
-          ) : (
-            <div className="table-wrap">
-              <table className="data-table">
-                <thead><tr><th>File</th><th>Chunks</th><th>Status</th><th></th></tr></thead>
-                <tbody>
-                  {status.documents.map((d) => (
-                    <tr key={d.id}>
-                      <td>{d.filename}</td>
-                      <td>{d.chunk_count ?? '—'}</td>
-                      <td><StatusBadge status={d.status} /></td>
-                      <td>
-                        <div className="flex gap-2">
-                          <button className="btn btn-ghost btn-sm btn-icon" onClick={() => handleReIngest(d.id)} title="Re-ingest"><RefreshCcw size={14} /></button>
-                          <button className="btn btn-ghost btn-sm btn-icon" onClick={() => handleDeleteDoc(d.id)} title="Delete"><Trash2 size={14} className="text-danger" /></button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+        status.source ? (
+          <div className="flex flex-col gap-4">
+            <div className="card card-pad flex items-center gap-2" style={{ fontSize: 13.5 }}>
+              <GitBranch size={15} />
+              <span>
+                Knowledge comes from{' '}
+                <a href={status.source.repo_url} target="_blank" rel="noreferrer" style={{ fontWeight: 600 }}>{status.source.repo}</a>.
+                To change it, update the docs in the repository (or re-sync it from the GitHub page).
+              </span>
             </div>
-          )}
-        </div>
+
+            {!status.documents?.length ? (
+              <EmptyState
+                icon={<FileCode2 size={20} />}
+                title="No documentation files indexed yet"
+                description="Indexing may still be running. Check back in a moment."
+              />
+            ) : (
+              <div className="table-wrap">
+                <table className="data-table">
+                  <thead><tr><th>Path</th><th>Chunks</th></tr></thead>
+                  <tbody>
+                    {status.documents.map((d) => (
+                      <tr key={d.id}>
+                        <td><code>{d.filename}</code></td>
+                        <td>{d.chunk_count ?? '—'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="flex flex-col gap-4">
+            <FileDropzone multiple onFilesSelected={handleUpload} />
+            {uploading && <p style={{ fontSize: 13 }}>Uploading…</p>}
+            {!status.documents?.length ? (
+              <EmptyState icon={<FileText size={20} />} title="No documents yet" description="Upload documents to ground this project's answers." />
+            ) : (
+              <div className="table-wrap">
+                <table className="data-table">
+                  <thead><tr><th>File</th><th>Chunks</th><th>Status</th><th></th></tr></thead>
+                  <tbody>
+                    {status.documents.map((d) => (
+                      <tr key={d.id}>
+                        <td>{d.filename}</td>
+                        <td>{d.chunk_count ?? '—'}</td>
+                        <td><StatusBadge status={d.status} /></td>
+                        <td>
+                          <div className="flex gap-2">
+                            <button className="btn btn-ghost btn-sm btn-icon" onClick={() => handleReIngest(d.id)} title="Re-ingest"><RefreshCcw size={14} /></button>
+                            <button className="btn btn-ghost btn-sm btn-icon" onClick={() => handleDeleteDoc(d.id)} title="Delete"><Trash2 size={14} className="text-danger" /></button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        )
       )}
 
       
